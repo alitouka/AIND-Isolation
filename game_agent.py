@@ -97,10 +97,11 @@ def custom_score(game, player):
     opp_moves_set = set(opp_moves)
     overlapping_moves_set = own_moves_set & opp_moves_set
     overlapping_moves_count = len(overlapping_moves_set)
-    overlapping_moves_fraction = overlapping_moves_count / (own_moves_count+1.0)
+    own_overlapping_moves_fraction = overlapping_moves_count / (own_moves_count+1.0)
+    opp_overlapping_moves_fraction = overlapping_moves_count / (opp_moves_count + 1.0)
 
-    return float((1.0+overlapping_moves_fraction)*own_moves_count
-                 - (2.0+overlapping_moves_fraction)*opp_moves_count)
+    return float((1.0-own_overlapping_moves_fraction)*own_moves_count
+                 - (2.0+opp_overlapping_moves_fraction)*opp_moves_count)
 
     # own_second_moves_set = set(legal_second_moves(game, player))
     # own_second_moves_count = len(own_second_moves_set)

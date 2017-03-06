@@ -164,18 +164,19 @@ def main():
 
 
     print(DESCRIPTION)
-    for agentUT in test_agents:
-        print("")
-        print("*************************")
-        print("{:^25}".format("Evaluating: " + agentUT.name))
-        print("*************************")
+    for _ in range(5):
+        for agentUT in test_agents:
+            print("")
+            print("*************************")
+            print("{:^25}".format("Evaluating: " + agentUT.name))
+            print("*************************")
 
-        agents = random_agents + mm_agents + ab_agents + [agentUT]
-        win_ratio = play_round(agents, NUM_MATCHES)
+            agents = random_agents + mm_agents + ab_agents + [agentUT]
+            win_ratio = play_round(agents, NUM_MATCHES)
 
-        print("\n\nResults:")
-        print("----------")
-        print("{!s:<15}{:>10.2f}%".format(agentUT.name, win_ratio))
+            print("\n\nResults:")
+            print("----------")
+            print("{!s:<15}{:>10.2f}%".format(agentUT.name, win_ratio))
 
 
 if __name__ == "__main__":
