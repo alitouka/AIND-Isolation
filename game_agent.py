@@ -13,6 +13,40 @@ class Timeout(Exception):
     """Subclass base exception for code clarity."""
     pass
 
+def legal_second_moves(game, player):
+    second_move_directions = [(-3, -3), (-3, -1), (-3, 1), (-3, 3),
+                              (-2, 0),
+                              (-1, -3), (-1, -1), (-1, 1), (-1, 3),
+                              (0, -2), (0, 2),
+                              (1, -3), (1, -1), (1, 1), (1, 3),
+                              (2, 0),
+                              (3, -3), (3, -1), (3, 1), (3, 3)]
+    r, c = game.get_player_location(player)
+    legal_moves = []
+
+    for dr, dc in second_move_directions:
+        move = (r+dr, c+dc)
+        if game.move_is_legal(move):
+            legal_moves.append(move)
+
+    return legal_moves
+
+def max_number_of_possible_moves(game, player):
+    result = 0
+    row, col = game.get_player_location(player)
+
+    directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
+                  (1, -2), (1, 2), (2, -1), (2, 1)]
+
+    for dr, dc in directions:
+        r = row+dr
+        c = col+dc
+
+        if r >= 0 and r < game.height and c >= 0 and c < game.width:
+            result += 1
+
+    return result
+
 
 def custom_score(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -38,7 +72,55 @@ def custom_score(game, player):
     """
 
     # TODO: finish this function!
-    return 0.0
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
+    own_moves = game.get_legal_moves(player)
+    own_moves_count = len(own_moves)
+    own_moves_fraction = own_moves_count / (max_number_of_possible_moves(game, player)+1.0)
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
+    opp_moves_count = len(opp_moves)
+    opp_moves_fraction = opp_moves_count / (max_number_of_possible_moves(game, game.get_opponent(player))+1.0)
+
+    # Check if I can immediately block my opponent
+    # if opp_moves_count == 1 and opp_moves[0] in own_moves:
+    #     return 1000.0;
+
+    # Check if my opponent can block me immediately
+    # if own_moves_count == 1 and own_moves[0] in opp_moves:
+    #     return -1000;
+
+    own_moves_set = set(own_moves)
+    opp_moves_set = set(opp_moves)
+    overlapping_moves_set = own_moves_set & opp_moves_set
+    overlapping_moves_count = len(overlapping_moves_set)
+    overlapping_moves_fraction = overlapping_moves_count / (own_moves_count+1.0)
+
+    return float((1.0+overlapping_moves_fraction)*own_moves_count
+                 - (2.0+overlapping_moves_fraction)*opp_moves_count)
+
+    # own_second_moves_set = set(legal_second_moves(game, player))
+    # own_second_moves_count = len(own_second_moves_set)
+    # opp_second_moves_set = set(legal_second_moves(game, game.get_opponent(player)))
+    # opp_second_moves_count = len(opp_second_moves_set)
+    # overlapping_second_moves_set = own_second_moves_set & opp_second_moves_set
+
+    # Check if an opponent can block me on their 2nd move
+    # if len(own_second_moves_set) == 1 and (own_second_moves_set in opp_moves or own_second_moves_set in opp_second_moves_set):
+    #     return -1000.0;
+
+    # return float(own_moves_count
+    #              - 2*opp_moves_count
+    #              - 1.5*len(overlapping_moves_set))
+                 # + 0.1*own_second_moves_count
+                 # - 0.2*opp_second_moves_count
+                 # - 0.05*len(overlapping_second_moves_set))
+
+    # Falling back to "my moves - opponent moves" heuristic
+    # return float(own_moves_count - opp_moves_count)
 
 
 class CustomPlayer:
@@ -79,6 +161,7 @@ class CustomPlayer:
         self.method = method
         self.time_left = None
         self.TIMER_THRESHOLD = timeout
+        self.transition_table = {}
 
     def get_move(self, game, legal_moves, time_left):
         """Search for the best move from the available legal moves and return a
@@ -117,6 +200,7 @@ class CustomPlayer:
         """
 
         self.time_left = time_left
+        self.transition_table = {}
 
         # Perform any required initializations, including selecting an initial
         # move from the game board (i.e., an opening book), or returning
@@ -142,12 +226,12 @@ class CustomPlayer:
                 while self.time_left() >= self.TIMER_THRESHOLD:
                     _, best_found_move = fn(game, depth)
 
-                    _, unique_nodes_visited = game.counts
+                    # _, unique_nodes_visited = game.counts
 
-                    if unique_nodes_visited == unique_nodes_visited_previously:
-                        break; # We haven't found any new nodes in this iteration
+                    #if unique_nodes_visited == unique_nodes_visited_previously:
+                    #    break; # We haven't found any new nodes in this iteration
 
-                    unique_nodes_visited_previously = unique_nodes_visited
+                    # unique_nodes_visited_previously = unique_nodes_visited
                     depth+=1
             else:
                 _, best_found_move = fn(game, self.search_depth)
@@ -158,6 +242,9 @@ class CustomPlayer:
 
         # Return the best move from the last completed search iteration
         return best_found_move
+
+    def transition_table_key(self, game, mp):
+        return game.to_string() + str(mp)
 
     def minimax(self, game, depth, maximizing_player=True):
         """Implement the minimax search algorithm as described in the lectures.
@@ -197,6 +284,12 @@ class CustomPlayer:
         if depth == 0:
             return self.score(game, self), game.get_player_location(self)
 
+        # key = self.transition_table_key(game, maximizing_player)
+        # if key in self.transition_table:
+        #     cached_depth, cached_score, cached_move = self.transition_table[key]
+        #     if cached_depth >= depth:
+        #         return cached_score, cached_move
+
         legal_moves = game.get_legal_moves(game.active_player)
         best_found_score = self.__worst_score__(maximizing_player)
         best_found_move = (-1, -1)
@@ -209,6 +302,13 @@ class CustomPlayer:
                     or (not maximizing_player and temp_score < best_found_score):
                 best_found_score = temp_score
                 best_found_move = m
+
+        # if key in self.transition_table:
+        #     cached_depth, _, _ = self.transition_table[key]
+        #     if cached_depth < depth:
+        #         self.transition_table[key] = (depth, best_found_score, best_found_move)
+        # else:
+        #     self.transition_table[key] = (depth, best_found_score, best_found_move)
 
         return best_found_score, best_found_move
 
@@ -266,6 +366,12 @@ class CustomPlayer:
         if depth == 0:
             return self.score(game, self), game.get_player_location(self)
 
+        # key = self.transition_table_key(game, maximizing_player)
+        # if key in self.transition_table:
+        #     cached_depth, cached_score, cached_move = self.transition_table[key]
+        #     if cached_depth >= depth:
+        #         return cached_score, cached_move
+
         legal_moves = game.get_legal_moves(game.active_player)
         best_found_score = self.__worst_score__(maximizing_player)
         best_found_move = (-1, -1)
@@ -288,5 +394,12 @@ class CustomPlayer:
                     break
                 beta = min(beta, best_found_score)
 
+
+        # if key in self.transition_table:
+        #     cached_depth, _, _ = self.transition_table[key]
+        #     if cached_depth < depth:
+        #         self.transition_table[key] = (depth, best_found_score, best_found_move)
+        # else:
+        #     self.transition_table[key] = (depth, best_found_score, best_found_move)
 
         return best_found_score, best_found_move
