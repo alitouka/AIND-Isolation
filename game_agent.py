@@ -90,7 +90,7 @@ def custom_score(game, player):
             if s > max_overlapping_move_score:
                 max_overlapping_move_score = s
 
-        result += max_overlapping_move_score
+        result += 1.5*max_overlapping_move_score
 
     return result
 
@@ -211,7 +211,8 @@ class CustomPlayer:
         self.method = method
         self.time_left = None
         self.TIMER_THRESHOLD = timeout
-        self.transition_table = {}
+        self.transposition_table = {}
+        self.use_transposition_table = True
 
     def get_move(self, game, legal_moves, time_left):
         """Search for the best move from the available legal moves and return a
@@ -250,7 +251,7 @@ class CustomPlayer:
         """
 
         self.time_left = time_left
-        self.transition_table = {}
+        self.transposition_table = {}
 
         # Perform any required initializations, including selecting an initial
         # move from the game board (i.e., an opening book), or returning
@@ -293,7 +294,7 @@ class CustomPlayer:
         # Return the best move from the last completed search iteration
         return best_found_move
 
-    def transition_table_key(self, game, mp):
+    def transposition_table_key(self, game, mp):
         return game.to_string() + str(mp)
 
     def minimax(self, game, depth, maximizing_player=True):
@@ -334,11 +335,12 @@ class CustomPlayer:
         if depth == 0:
             return self.score(game, self), game.get_player_location(self)
 
-        # key = self.transition_table_key(game, maximizing_player)
-        # if key in self.transition_table:
-        #     cached_depth, cached_score, cached_move = self.transition_table[key]
-        #     if cached_depth >= depth:
-        #         return cached_score, cached_move
+        if self.use_transposition_table:
+            key = self.transposition_table_key(game, maximizing_player)
+            if key in self.transposition_table:
+                cached_depth, cached_score, cached_move = self.transposition_table[key]
+                if cached_depth >= depth:
+                    return cached_score, cached_move
 
         legal_moves = game.get_legal_moves(game.active_player)
         best_found_score = self.__worst_score__(maximizing_player)
@@ -353,12 +355,13 @@ class CustomPlayer:
                 best_found_score = temp_score
                 best_found_move = m
 
-        # if key in self.transition_table:
-        #     cached_depth, _, _ = self.transition_table[key]
-        #     if cached_depth < depth:
-        #         self.transition_table[key] = (depth, best_found_score, best_found_move)
-        # else:
-        #     self.transition_table[key] = (depth, best_found_score, best_found_move)
+        if self.use_transposition_table:
+            if key in self.transposition_table:
+                cached_depth, _, _ = self.transposition_table[key]
+                if cached_depth < depth:
+                    self.transposition_table[key] = (depth, best_found_score, best_found_move)
+            else:
+                self.transposition_table[key] = (depth, best_found_score, best_found_move)
 
         return best_found_score, best_found_move
 
@@ -416,11 +419,12 @@ class CustomPlayer:
         if depth == 0:
             return self.score(game, self), game.get_player_location(self)
 
-        # key = self.transition_table_key(game, maximizing_player)
-        # if key in self.transition_table:
-        #     cached_depth, cached_score, cached_move = self.transition_table[key]
-        #     if cached_depth >= depth:
-        #         return cached_score, cached_move
+        if self.use_transposition_table:
+            key = self.transposition_table_key(game, maximizing_player)
+            if key in self.transposition_table:
+                cached_depth, cached_score, cached_move = self.transposition_table[key]
+                if cached_depth >= depth:
+                    return cached_score, cached_move
 
         legal_moves = game.get_legal_moves(game.active_player)
         best_found_score = self.__worst_score__(maximizing_player)
@@ -444,12 +448,12 @@ class CustomPlayer:
                     break
                 beta = min(beta, best_found_score)
 
-
-        # if key in self.transition_table:
-        #     cached_depth, _, _ = self.transition_table[key]
-        #     if cached_depth < depth:
-        #         self.transition_table[key] = (depth, best_found_score, best_found_move)
-        # else:
-        #     self.transition_table[key] = (depth, best_found_score, best_found_move)
+        if self.use_transposition_table:
+            if key in self.transposition_table:
+                cached_depth, _, _ = self.transposition_table[key]
+                if cached_depth < depth:
+                    self.transposition_table[key] = (depth, best_found_score, best_found_move)
+            else:
+                self.transposition_table[key] = (depth, best_found_score, best_found_move)
 
         return best_found_score, best_found_move
