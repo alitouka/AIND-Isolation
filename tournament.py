@@ -30,6 +30,7 @@ from sample_players import RandomPlayer
 from sample_players import null_score
 from sample_players import open_move_score
 from sample_players import improved_score
+from sample_players import HumanPlayer
 from game_agent import CustomPlayer
 from game_agent import custom_score
 
@@ -134,6 +135,56 @@ def play_round(agents, num_matches):
 
     return 100. * wins / total
 
+def play_one_game(player1, player2):
+    """
+    Play a "fair" set of matches between two agents by playing two games
+    between the players, forcing each agent to play from randomly selected
+    positions. This should control for differences in outcome resulting from
+    advantage due to starting position on the board.
+    """
+    num_wins = {player1: 0, player2: 0}
+    num_timeouts = {player1: 0, player2: 0}
+    num_invalid_moves = {player1: 0, player2: 0}
+    game = Board(player1, player2)
+
+    # initialize both games with a random move and response
+    for _ in range(2):
+        move = random.choice(game.get_legal_moves())
+        game.apply_move(move)
+        game.apply_move(move)
+
+
+    winner, _, termination = game.play(time_limit=TIME_LIMIT)
+
+    if player1 == winner:
+        num_wins[player1] += 1
+
+        if termination == "timeout":
+            num_timeouts[player2] += 1
+        else:
+            num_invalid_moves[player2] += 1
+
+    elif player2 == winner:
+
+        num_wins[player2] += 1
+
+        if termination == "timeout":
+            num_timeouts[player1] += 1
+        else:
+            num_invalid_moves[player1] += 1
+
+    if sum(num_timeouts.values()) != 0:
+        warnings.warn(TIMEOUT_WARNING)
+
+    print("Final state of the game:\n\r" + game.to_string() + "\n\r")
+    return num_wins[player1], num_wins[player2]
+
+def main_human():
+    human_agent = Agent(HumanPlayer(), "Human")
+    computer_agent = Agent(CustomPlayer(score_fn=improved_score, method='alphabeta', iterative=True), "AB_Improved")
+    human_score, computer_score = play_one_game(human_agent.player, computer_agent.player)
+
+    print("Your score: " + str(human_score) + ", computer's score: " + str(computer_score) + '\n\r')
 
 def main():
 

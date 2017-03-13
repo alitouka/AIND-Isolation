@@ -35,6 +35,7 @@ def legal_second_moves(game, player):
 def max_number_of_possible_moves(game, location):
     result = 0
     row, col = location
+    legal_moves = []
 
     directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
                   (1, -2), (1, 2), (2, -1), (2, 1)]
@@ -44,9 +45,10 @@ def max_number_of_possible_moves(game, location):
         c = col+dc
 
         if game.move_is_legal((r, c)):
+            legal_moves.append((r, c))
             result += 1
 
-    return result
+    return result, legal_moves
 
 
 def custom_score(game, player):
@@ -58,39 +60,56 @@ def custom_score(game, player):
 
     own_moves = game.get_legal_moves(player)
     opp_moves = game.get_legal_moves(game.get_opponent(player))
+    own_second_moves = set()
+    opp_second_moves = set()
 
     own_move_scores = {}
     total_own_move_scores = 0
     for m in own_moves:
-        s = max_number_of_possible_moves(game, m)
+        s, second_moves = max_number_of_possible_moves(game, m)
         own_move_scores[m] = s
+        own_second_moves = own_second_moves | set(second_moves)
         total_own_move_scores += s
+
 
     opp_move_scores = {}
     total_opp_move_scores = 0
     for m in opp_moves:
-        s = max_number_of_possible_moves(game, m)
+        s, second_moves = max_number_of_possible_moves(game, m)
         opp_move_scores[m] = s
+        opp_second_moves = opp_second_moves | set(second_moves)
         total_opp_move_scores += s
 
-    result = total_own_move_scores - total_opp_move_scores
-
     overlapping_moves = set(own_moves) & set(opp_moves)
+    overlapping_second_moves = own_second_moves & opp_second_moves
+    board_size = game.width*game.height
 
-    if len(overlapping_moves) != 0 and total_own_move_scores != 0 and total_opp_move_scores != 0:
-        avg_own_move_score = total_own_move_scores / float(len(own_moves))
-        avg_opp_move_score = total_opp_move_scores / float(len(opp_moves))
-        max_overlapping_move_score = 0
 
-        for m in overlapping_moves:
-            temp_own = own_move_scores[m] / avg_own_move_score
-            temp_opp = opp_move_scores[m] / avg_opp_move_score
-            s = temp_own * temp_opp
 
-            if s > max_overlapping_move_score:
-                max_overlapping_move_score = s
+    result = total_own_move_scores - 1.5*total_opp_move_scores - 0.5*len(overlapping_second_moves)
 
-        result += 1.5*max_overlapping_move_score
+    # overlapping_moves = set(own_moves) & set(opp_moves)
+    # total_overlapping_moves_score = 0
+    #
+    # for m in overlapping_moves:
+    #     total_overlapping_moves_score += max(opp_move_scores[m], own_move_scores[m])
+    #
+    # result -= 2.0*total_overlapping_moves_score
+
+    # if len(overlapping_moves) != 0 and total_own_move_scores != 0 and total_opp_move_scores != 0:
+    #     avg_own_move_score = total_own_move_scores / float(len(own_moves))
+    #     avg_opp_move_score = total_opp_move_scores / float(len(opp_moves))
+    #     max_overlapping_move_score = 0
+    #
+    #     for m in overlapping_moves:
+    #         temp_own = own_move_scores[m] / avg_own_move_score
+    #         temp_opp = opp_move_scores[m] / avg_opp_move_score
+    #         s = temp_own * temp_opp
+    #
+    #         if s > max_overlapping_move_score:
+    #             max_overlapping_move_score = s
+    #
+    #     result += 1.5*max_overlapping_move_score
 
     return result
 
@@ -135,12 +154,12 @@ def custom_score_old(game, player):
     # opp_moves_fraction = opp_moves_count / (max_number_of_possible_moves(game, game.get_opponent(player))+1.0)
 
     # Check if I can immediately block my opponent
-    # if opp_moves_count == 1 and opp_moves[0] in own_moves:
-    #     return 1000.0;
+    if opp_moves_count == 1 and opp_moves[0] in own_moves:
+        return 1000.0
 
     # Check if my opponent can block me immediately
-    # if own_moves_count == 1 and own_moves[0] in opp_moves:
-    #     return -1000;
+    if own_moves_count == 1 and own_moves[0] in opp_moves:
+        return -1000;
 
     own_moves_set = set(own_moves)
     opp_moves_set = set(opp_moves)
@@ -149,8 +168,8 @@ def custom_score_old(game, player):
     own_overlapping_moves_fraction = overlapping_moves_count / (own_moves_count+1.0)
     opp_overlapping_moves_fraction = overlapping_moves_count / (opp_moves_count + 1.0)
 
-    return float((1.0-own_overlapping_moves_fraction)*own_moves_count
-                 - (2.0+opp_overlapping_moves_fraction)*opp_moves_count)
+    # return float((1.0-own_overlapping_moves_fraction)*own_moves_count
+    #              - (2.0+opp_overlapping_moves_fraction)*opp_moves_count)
 
     # own_second_moves_set = set(legal_second_moves(game, player))
     # own_second_moves_count = len(own_second_moves_set)
@@ -162,12 +181,12 @@ def custom_score_old(game, player):
     # if len(own_second_moves_set) == 1 and (own_second_moves_set in opp_moves or own_second_moves_set in opp_second_moves_set):
     #     return -1000.0;
 
-    # return float(own_moves_count
-    #              - 2*opp_moves_count
-    #              - 1.5*len(overlapping_moves_set))
-                 # + 0.1*own_second_moves_count
-                 # - 0.2*opp_second_moves_count
-                 # - 0.05*len(overlapping_second_moves_set))
+    return float(own_moves_count
+                 - 2*opp_moves_count
+                 - 1.5*len(overlapping_moves_set))
+    #              # + 0.1*own_second_moves_count
+    #              # - 0.2*opp_second_moves_count
+    #              # - 0.05*len(overlapping_second_moves_set))
 
     # Falling back to "my moves - opponent moves" heuristic
     # return float(own_moves_count - opp_moves_count)

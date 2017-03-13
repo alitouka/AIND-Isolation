@@ -277,25 +277,28 @@ class Board(object):
 
         p1_loc = self.__last_player_move__[self.__player_1__]
         p2_loc = self.__last_player_move__[self.__player_2__]
+        p1_legal_moves = self.get_legal_moves(self.__player_1__)
 
-        out = ''
+        out = '   0   1   2   3   4   5   6\n\r +---+---+---+---+---+---+---+\n\r'
 
         for i in range(self.height):
-            out += ' | '
+            out += str(i) + '| '
 
             for j in range(self.width):
 
-                if not self.__board_state__[i][j]:
+                if (i, j) in p1_legal_moves:
+                    out += str(p1_legal_moves.index((i, j)))
+                elif not self.__board_state__[i][j]:
                     out += ' '
                 elif p1_loc and i == p1_loc[0] and j == p1_loc[1]:
-                    out += '1'
+                    out += 'H'
                 elif p2_loc and i == p2_loc[0] and j == p2_loc[1]:
-                    out += '2'
+                    out += 'C'
                 else:
-                    out += '-'
+                    out += 'x'
 
                 out += ' | '
-            out += '\n\r'
+            out += '\n\r +---+---+---+---+---+---+---+\n\r'
 
         return out
 
@@ -342,7 +345,7 @@ class Board(object):
             else:
                 move_history[-1].append(curr_move)
 
-            if move_end < 0:
+            if move_end < 0: # and self.__active_player__ != self.__player_1__:
                 return self.__inactive_player__, move_history, "timeout"
 
             if curr_move not in legal_player_moves:
