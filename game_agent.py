@@ -13,26 +13,15 @@ class Timeout(Exception):
     """Subclass base exception for code clarity."""
     pass
 
-def legal_second_moves(game, player):
-    second_move_directions = [(-3, -3), (-3, -1), (-3, 1), (-3, 3),
-                              (-2, 0),
-                              (-1, -3), (-1, -1), (-1, 1), (-1, 3),
-                              (0, -2), (0, 2),
-                              (1, -3), (1, -1), (1, 1), (1, 3),
-                              (2, 0),
-                              (3, -3), (3, -1), (3, 1), (3, 3)]
-    r, c = game.get_player_location(player)
-    legal_moves = []
 
-    for dr, dc in second_move_directions:
-        move = (r+dr, c+dc)
-        if game.move_is_legal(move):
-            legal_moves.append(move)
-
-    return legal_moves
-
-
-def max_number_of_possible_moves(game, location):
+def legal_moves_from_location(game, location):
+    """
+    Finds all legal moves from a given location
+    
+    :param game: an instance of isolation.Board class
+    :param location: a location on a board in a form of a tuple (row, column)
+    :return: a number of legal moves, a list of legal moves 
+    """
     result = 0
     row, col = location
     legal_moves = []
@@ -51,7 +40,46 @@ def max_number_of_possible_moves(game, location):
     return result, legal_moves
 
 
-def custom_score(game, player):
+def custom_score_1(game, player):
+    """
+    A heuristic function defined as
+
+    N         - N               - N
+     my_moves    opponent_moves    overlapping_moves
+
+    :param game:
+    :param player:
+    :return:
+    """
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
+    own_moves = game.get_legal_moves(player)
+    own_moves_count = len(own_moves)
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
+    opp_moves_count = len(opp_moves)
+
+    own_moves_set = set(own_moves)
+    opp_moves_set = set(opp_moves)
+    overlapping_moves_set = own_moves_set & opp_moves_set
+
+    return float(own_moves_count-opp_moves_count-len(overlapping_moves_set))
+
+
+def custom_score_2(game, player):
+    """
+    A heuristic function defined as
+
+    N                       - N
+     my_unique_second_moves    opponent_unique_second_moves
+
+    :param game:
+    :param player:
+    :return:
+    """
     if game.is_loser(player):
         return float("-inf")
 
@@ -63,83 +91,28 @@ def custom_score(game, player):
     own_second_moves = set()
     opp_second_moves = set()
 
-    own_move_scores = {}
-    total_own_move_scores = 0
     for m in own_moves:
-        s, second_moves = max_number_of_possible_moves(game, m)
-        own_move_scores[m] = s
+        _, second_moves = legal_moves_from_location(game, m)
         own_second_moves = own_second_moves | set(second_moves)
-        total_own_move_scores += s
 
-
-    opp_move_scores = {}
-    total_opp_move_scores = 0
     for m in opp_moves:
-        s, second_moves = max_number_of_possible_moves(game, m)
-        opp_move_scores[m] = s
+        _, second_moves = legal_moves_from_location(game, m)
         opp_second_moves = opp_second_moves | set(second_moves)
-        total_opp_move_scores += s
 
-    overlapping_moves = set(own_moves) & set(opp_moves)
-    overlapping_second_moves = own_second_moves & opp_second_moves
-    board_size = game.width*game.height
+    return len(own_second_moves) - len(opp_second_moves)
 
 
-
-    result = total_own_move_scores - 1.5*total_opp_move_scores - 0.5*len(overlapping_second_moves)
-
-    # overlapping_moves = set(own_moves) & set(opp_moves)
-    # total_overlapping_moves_score = 0
-    #
-    # for m in overlapping_moves:
-    #     total_overlapping_moves_score += max(opp_move_scores[m], own_move_scores[m])
-    #
-    # result -= 2.0*total_overlapping_moves_score
-
-    # if len(overlapping_moves) != 0 and total_own_move_scores != 0 and total_opp_move_scores != 0:
-    #     avg_own_move_score = total_own_move_scores / float(len(own_moves))
-    #     avg_opp_move_score = total_opp_move_scores / float(len(opp_moves))
-    #     max_overlapping_move_score = 0
-    #
-    #     for m in overlapping_moves:
-    #         temp_own = own_move_scores[m] / avg_own_move_score
-    #         temp_opp = opp_move_scores[m] / avg_opp_move_score
-    #         s = temp_own * temp_opp
-    #
-    #         if s > max_overlapping_move_score:
-    #             max_overlapping_move_score = s
-    #
-    #     result += 1.5*max_overlapping_move_score
-
-    return result
-
-
-
-
-def custom_score_old(game, player):
-    """Calculate the heuristic value of a game state from the point of view
-    of the given player.
-
-    Note: this function should be called from within a Player instance as
-    `self.score()` -- you should not need to call this function directly.
-
-    Parameters
-    ----------
-    game : `isolation.Board`
-        An instance of `isolation.Board` encoding the current state of the
-        game (e.g., player locations and blocked cells).
-
-    player : object
-        A player instance in the current game (i.e., an object corresponding to
-        one of the player objects `game.__player_1__` or `game.__player_2__`.)
-
-    Returns
-    -------
-    float
-        The heuristic value of the current game state to the specified player.
+def custom_score_3(game, player):
     """
+    A heuristic function defined as
 
-    # TODO: finish this function!
+    N                    - N
+     all_my_second_moves    all_opponent_second_moves
+
+    :param game:
+    :param player:
+    :return:
+    """
     if game.is_loser(player):
         return float("-inf")
 
@@ -147,50 +120,61 @@ def custom_score_old(game, player):
         return float("inf")
 
     own_moves = game.get_legal_moves(player)
-    own_moves_count = len(own_moves)
-    # own_moves_fraction = own_moves_count / (max_number_of_possible_moves(game, player)+1.0)
     opp_moves = game.get_legal_moves(game.get_opponent(player))
-    opp_moves_count = len(opp_moves)
-    # opp_moves_fraction = opp_moves_count / (max_number_of_possible_moves(game, game.get_opponent(player))+1.0)
 
-    # Check if I can immediately block my opponent
-    if opp_moves_count == 1 and opp_moves[0] in own_moves:
-        return 1000.0
+    number_of_own_second_moves = 0
+    for m in own_moves:
+        s, _ = legal_moves_from_location(game, m)
+        number_of_own_second_moves += s
 
-    # Check if my opponent can block me immediately
-    if own_moves_count == 1 and own_moves[0] in opp_moves:
-        return -1000;
+    number_of_opp_second_moves = 0
+    for m in opp_moves:
+        s, _ = legal_moves_from_location(game, m)
+        number_of_opp_second_moves += s
 
-    own_moves_set = set(own_moves)
-    opp_moves_set = set(opp_moves)
-    overlapping_moves_set = own_moves_set & opp_moves_set
-    overlapping_moves_count = len(overlapping_moves_set)
-    own_overlapping_moves_fraction = overlapping_moves_count / (own_moves_count+1.0)
-    opp_overlapping_moves_fraction = overlapping_moves_count / (opp_moves_count + 1.0)
+    return number_of_own_second_moves - number_of_opp_second_moves
 
-    # return float((1.0-own_overlapping_moves_fraction)*own_moves_count
-    #              - (2.0+opp_overlapping_moves_fraction)*opp_moves_count)
 
-    # own_second_moves_set = set(legal_second_moves(game, player))
-    # own_second_moves_count = len(own_second_moves_set)
-    # opp_second_moves_set = set(legal_second_moves(game, game.get_opponent(player)))
-    # opp_second_moves_count = len(opp_second_moves_set)
-    # overlapping_second_moves_set = own_second_moves_set & opp_second_moves_set
+def custom_score_4(game, player):
+    """
+    A heuristic function defined as
 
-    # Check if an opponent can block me on their 2nd move
-    # if len(own_second_moves_set) == 1 and (own_second_moves_set in opp_moves or own_second_moves_set in opp_second_moves_set):
-    #     return -1000.0;
+    N                    - 1.5*N                          - 0.5*N
+     all_my_second_moves        all_opponent_second_moves        overlapping_second_moves
 
-    return float(own_moves_count
-                 - 2*opp_moves_count
-                 - 1.5*len(overlapping_moves_set))
-    #              # + 0.1*own_second_moves_count
-    #              # - 0.2*opp_second_moves_count
-    #              # - 0.05*len(overlapping_second_moves_set))
+    :param game:
+    :param player:
+    :return:
+    """
+    if game.is_loser(player):
+        return float("-inf")
 
-    # Falling back to "my moves - opponent moves" heuristic
-    # return float(own_moves_count - opp_moves_count)
+    if game.is_winner(player):
+        return float("inf")
 
+    own_moves = game.get_legal_moves(player)
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
+    own_second_moves = set()
+    opp_second_moves = set()
+
+    number_of_own_second_moves = 0
+    for m in own_moves:
+        s, second_moves = legal_moves_from_location(game, m)
+        own_second_moves = own_second_moves | set(second_moves)
+        number_of_own_second_moves += s
+
+        number_of_opp_second_moves = 0
+    for m in opp_moves:
+        s, second_moves = legal_moves_from_location(game, m)
+        opp_second_moves = opp_second_moves | set(second_moves)
+        number_of_opp_second_moves += s
+
+    overlapping_second_moves = own_second_moves & opp_second_moves
+    return number_of_own_second_moves - 1.5*number_of_opp_second_moves - 0.5*len(overlapping_second_moves)
+
+
+def custom_score(game, player):
+    return custom_score_4(game, player)
 
 class CustomPlayer:
     """Game-playing agent that chooses a move using your evaluation function
@@ -291,17 +275,9 @@ class CustomPlayer:
             # when the timer gets close to expiring
             if self.iterative:
                 depth = 1
-                unique_nodes_visited_previously = 0
 
                 while self.time_left() >= self.TIMER_THRESHOLD:
                     _, best_found_move = fn(game, depth)
-
-                    # _, unique_nodes_visited = game.counts
-
-                    #if unique_nodes_visited == unique_nodes_visited_previously:
-                    #    break; # We haven't found any new nodes in this iteration
-
-                    # unique_nodes_visited_previously = unique_nodes_visited
                     depth+=1
             else:
                 _, best_found_move = fn(game, self.search_depth)
